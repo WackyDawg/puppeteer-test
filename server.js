@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 
 // Paths to the config and log files
-const configPath = path.join(__dirname, 'public', 'config.json');
+const configPath = path.join(__dirname, 'public', 'config.txt');
 const logPath = path.join(__dirname, 'logs', 'update.log');
 
 let browser;
@@ -12,16 +12,14 @@ let page;
 
 // Function to read the config file and visit the website
 async function visitWebsite() {
-  const config = await fs.readFile(configPath, 'utf-8');
-  const { website } = JSON.parse(config);
-
-  console.log(`Visiting: ${website}`);
+  const website = await fs.readFile(configPath, 'utf-8');
+  console.log(`Visiting: ${website.trim()}`);
 
   if (browser) await browser.close();
 
   browser = await puppeteer.launch({ headless: true });
   page = await browser.newPage();
-  await page.goto(website, { waitUntil: 'networkidle2' });
+  await page.goto(website.trim(), { waitUntil: 'networkidle2' });
 }
 
 // Function to log updates to the log file
@@ -43,11 +41,10 @@ app.post('/update-website', async (req, res) => {
   }
 
   // Update the config file
-  const newConfig = JSON.stringify({ website }, null, 2);
-  await fs.writeFile(configPath, newConfig, 'utf-8');
+  await fs.writeFile(configPath, website.trim(), 'utf-8');
 
   // Log the update
-  await logUpdate(website);
+  await logUpdate(website.trim());
 
   // Restart Puppeteer with the new website
   await visitWebsite();
