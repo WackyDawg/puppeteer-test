@@ -1,9 +1,12 @@
 const express = require('express');
 const fs = require('fs').promises;
+const path = require('path');
 const puppeteer = require('puppeteer');
 
 const app = express();
-const port = 4000;
+const port = 3000;
+const configPath = path.join(__dirname, 'public', 'config.json');
+const logPath = path.join(__dirname, 'public', 'error.log');
 
 let browser, page;
 
@@ -27,19 +30,40 @@ async function stopBrowser() {
   }
 }
 
-// Function to get the current config
+// Function to get the current config or create a new one if it doesn't exist
 async function getConfig() {
-  const data = await fs.readFile('./public/config.json', 'utf8');
-  return JSON.parse(data);
+  try {
+    const data = await fs.readFile(configPath, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    await logError(err);
+
+    // If config.json doesn't exist or we don't have permission, create a new one
+    const defaultConfig = { website: 'https://example.com' };
+    await fs.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
+    console.log('New config.json created with default settings.');
+    return defaultConfig;
+  }
 }
 
 // Function to update the config and restart the browser
 async function updateConfig(newConfig) {
-  await fs.writeFile('./public/config.json', JSON.stringify(newConfig, null, 2));
-  console.log('Config updated.');
+  try {
+    await fs.writeFile(configPath, JSON.stringify(newConfig, null, 2));
+    console.log('Config updated.');
 
-  await stopBrowser();
-  await startBrowser();
+    await stopBrowser();
+    await startBrowser();
+  } catch (err) {
+    await logError(err);
+  }
+}
+
+// Function to log errors to a file
+async function logError(err) {
+  const errorLog = `[${new Date().toISOString()}] ${err.message}\n`;
+  await fs.appendFile(logPath, errorLog);
+  console.error('An error occurred:', err.message);
 }
 
 // Route to update the website in the config
